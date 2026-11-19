@@ -12,10 +12,13 @@ Two versions of recruitment are modeled:
 """
 
 import csv
+from pathlib import Path
 
 import numpy as np
 
-PARAMETERS_FILE = "halibut_biological_parameters.csv"
+# Resolved relative to this file, not the current working directory, so the CSV
+# is found no matter where the code is run from (including on the web server).
+PARAMETERS_FILE = Path(__file__).resolve().parent / "halibut_biological_parameters.csv"
 LEGAL_SIZE_INCHES = 22.0
 
 # Instantaneous fishing mortality rate (per year). PLACEHOLDER: replace with a
@@ -90,6 +93,17 @@ def build_leslie_matrix(params, fishing_mortality, legal_size, egg_survival):
 def dominant_eigenvalue(matrix):
     """Return the largest-magnitude eigenvalue: the population's yearly growth multiplier."""
     return max(abs(np.linalg.eigvals(matrix)))
+
+
+def stable_age_distribution(matrix):
+    """Return the eigenvector of the dominant eigenvalue, scaled to sum to 1.
+
+    This is the fraction of the population in each age class once the linear
+    model has run long enough for the dominant eigenvalue to take over.
+    """
+    eigenvalues, eigenvectors = np.linalg.eig(matrix)
+    dominant = np.real(eigenvectors[:, np.argmax(abs(eigenvalues))])
+    return dominant / dominant.sum()
 
 
 def tune_egg_survival(params, legal_size, target=1.0, tolerance=1e-10):
@@ -205,10 +219,12 @@ def catch_in_numbers(params, population, fishing_mortality, legal_size):
 
     Fish in an age class die at total rate Z = M + F, so a fraction
     1 - exp(-Z) die during the year, and the share F / Z of those deaths is catch.
+    population can be one year's vector (returns a number) or a whole
+    simulation history of shape (years + 1, n) (returns the catch in each year).
     """
     fishing = fishing_rates(params, fishing_mortality, legal_size)
     total_mortality = params["natural_mortality"] + fishing
-    return np.sum(population * fishing / total_mortality * (1 - np.exp(-total_mortality)))
+    return np.sum(population * fishing / total_mortality * (1 - np.exp(-total_mortality)), axis=-1)
 
 
 def print_matrix(matrix, params):

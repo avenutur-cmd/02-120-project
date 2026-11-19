@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>California Halibut Simulator</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <header>
+        <h1>California Halibut Simulator</h1>
+        <p class="subtitle">How do size limits change what fishing does to the population?</p>
+      </header>
+
+      <section>
+        <h2>Scenarios</h2>
+        <div class="presets">
+          <button type="button" data-preset="unfished">Unfished</button>
+          <button type="button" data-preset="ca_limit">22-inch CA limit</button>
+          <button type="button" data-preset="overfishing">Indiscriminate overfishing</button>
+          <button type="button" data-preset="msy_crash">Schaefer MSY crash</button>
+        </div>
+      </section>
+
+      <!-- Each slider's id is the name of the API field it controls. -->
+      <section>
+        <h2>Age-structured model</h2>
+        <div class="control">
+          <label for="fishing_mortality">Fishing mortality F <output for="fishing_mortality"></output></label>
+          <input type="range" id="fishing_mortality" min="0" max="2" step="0.01" value="0.3">
+          <p class="hint">Instantaneous rate per year, applied to fish at or above the size limit.</p>
+        </div>
+        <div class="control">
+          <label for="size_limit_inches">Legal size limit <output for="size_limit_inches"></output></label>
+          <input type="range" id="size_limit_inches" min="0" max="30" step="0.5" value="22">
+          <p class="hint" id="fished-ages-hint">&nbsp;</p>
+        </div>
+        <div class="control">
+          <label for="steepness">Steepness h <output for="steepness"></output></label>
+          <input type="range" id="steepness" min="0.21" max="0.99" step="0.01" value="0.7">
+          <p class="hint">Share of unfished recruitment left when egg production falls to 20%.</p>
+        </div>
+        <div class="control">
+          <label for="years">Simulation years <output for="years"></output></label>
+          <input type="range" id="years" min="10" max="200" step="5" value="50">
+        </div>
+      </section>
+
+      <section>
+        <h2>Schaefer model</h2>
+        <div class="control">
+          <label for="harvest">Constant harvest H <output for="harvest"></output></label>
+          <input type="range" id="harvest" min="0" max="600000" step="1000" value="200000">
+          <p class="hint" id="msy-hint">&nbsp;</p>
+        </div>
+      </section>
+    </aside>
+
+    <main>
+      <div class="status" id="status" role="status" aria-live="polite"></div>
+
+      <div class="kpis">
+        <div class="kpi">
+          <div class="kpi-label">Equilibrium population</div>
+          <div class="kpi-value" id="kpi-population">–</div>
+          <div class="kpi-sub" id="kpi-population-sub"></div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Sustainable catch</div>
+          <div class="kpi-value" id="kpi-catch">–</div>
+          <div class="kpi-sub" id="kpi-catch-sub"></div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Spawning potential ratio</div>
+          <div class="kpi-value" id="kpi-spr">–</div>
+          <div class="kpi-sub" id="kpi-spr-sub"></div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Schaefer harvest / MSY</div>
+          <div class="kpi-value" id="kpi-schaefer">–</div>
+          <div class="kpi-sub" id="kpi-schaefer-sub"></div>
+        </div>
+      </div>
+
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" id="tab-btn-leslie" aria-controls="tab-leslie" aria-selected="true" data-tab="leslie">Size limit vs. indiscriminate</button>
+        <button type="button" role="tab" id="tab-btn-schaefer" aria-controls="tab-schaefer" aria-selected="false" data-tab="schaefer">Schaefer model &amp; checks</button>
+      </div>
+
+      <section class="panel" id="tab-leslie" role="tabpanel" aria-labelledby="tab-btn-leslie">
+        <div class="card">
+          <h3>Total population over time</h3>
+          <p class="caption" id="population-caption"></p>
+          <div class="chart" id="chart-population"></div>
+        </div>
+        <div class="card">
+          <h3>Age distribution in the final year</h3>
+          <p class="caption">Bars: fish in each age class at the end of the simulation. Line: the unfished survivorship curve.</p>
+          <div class="chart" id="chart-ages"></div>
+        </div>
+      </section>
+
+      <section class="panel" id="tab-schaefer" role="tabpanel" aria-labelledby="tab-btn-schaefer" hidden>
+        <div class="card">
+          <h3>Schaefer population over time</h3>
+          <p class="caption">dP/dt = rP(1 − P/K) − H, integrated with scipy's solve_ivp.</p>
+          <div class="chart" id="chart-schaefer"></div>
+        </div>
+        <div class="card">
+          <h3>Surplus production vs. harvest</h3>
+          <p class="caption">The population can only sustain H where the harvest line meets the production curve. Above MSY = rK/4 they never meet.</p>
+          <div class="chart" id="chart-production"></div>
+        </div>
+        <div class="card">
+          <h3>Verification checks</h3>
+          <table class="checks">
+            <thead><tr><th>Check</th><th>Expected</th><th>Model</th><th>Result</th></tr></thead>
+            <tbody id="checks-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
